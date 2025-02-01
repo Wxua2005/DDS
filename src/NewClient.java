@@ -4,7 +4,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
-import java.nio.channels.Pipe.SinkChannel;
 import java.util.Scanner;
 
 class Sender {
@@ -13,6 +12,7 @@ class Sender {
     Sender(int port) {
         try {
         DGC = new DatagramSocket();
+        System.out.println(DGC.getLocalPort());
         this.port = port;
         }
         catch (SocketException err) {
@@ -20,7 +20,7 @@ class Sender {
         }
     }
 
-    void sendData(String data) {
+    void sendData(String data, int port) {
         try {
         byte[] buffer = data.getBytes();
         DatagramPacket DGP = new DatagramPacket(buffer, buffer.length, InetAddress.getLocalHost(), port);
@@ -37,13 +37,17 @@ class Sender {
 
 class NewClient {
     public static void main(String[] args) {
-        Sender sender = new Sender(5000);
+        Sender sender = new Sender(5001);
         Scanner scanner = new Scanner(System.in);
         String data;
         while (true) {
             data = scanner.nextLine();
-            sender.sendData(data);
+            sender.sendData(data, 5000);
+            if (data.equals("End")) {
+                break;
+            }
         }
-        //sender.DGC.close();
+        sender.DGC.close();
+        scanner.close();
     }
 }
