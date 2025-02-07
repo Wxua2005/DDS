@@ -1,57 +1,71 @@
 package node;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.io.IOException;
-import java.net.DatagramPacket;
+
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.Map;
+
 import publisher.Publisher;
 import subscriber.Subscriber;
 
-// Node contains 2 DatagramSockets in the following Classes
-//                       |
-//                 -------------
-//                 |           |
-//              Publisher  Subscriber
-// 
-// Subscriber socket is member variable of node class while 
-// Publisher socket is only created when create_publisher()
-// method is called 
-
 public class Node {
-    static ArrayList<Node> nodeList = new ArrayList<Node>();
-    static int IDCount = 0;
-    static Map<String, ArrayList<Node>> topicSubscribers = new HashMap<>();
+    private static List<Node> nodeList = new ArrayList<>();
+    private static int IDCount = 0;
+    private static Map<String, List<Node>> topicPublishers = new ConcurrentHashMap<>();
+    private static Map<String, List<Node>> topicSubscribers = new ConcurrentHashMap<>();
 
-    public int nodeID;
-    public int nodePort;
-    public String nodeName = null; 
-    public int publisherCount = 0;
-    public int subscriberCount = 0;
-    public DatagramSocket clientSocket; // Node for receiving data
+    private int nodeID;
+    private int nodePort;
+    private String nodeName;
+    private DatagramSocket socket;
 
     public Node(String nodeName) {
         try {
             this.nodeName = nodeName;
             this.nodeID = IDCount++;
-            this.clientSocket = new DatagramSocket();
-            this.nodePort = clientSocket.getLocalPort();
+            this.socket = new DatagramSocket();
+            this.nodePort = socket.getLocalPort();
+            nodeList.add(this);
         } catch (SocketException err) {
-            System.out.println(err);
+            System.err.println("Error creating node: " + err.getMessage());
         }
     }
 
-    public Publisher create_publisher(String topic) {
-            // For publishing data, the DatagramSocket of the publisher is used as the node
-            Publisher publisher = new Publisher(this, topic);
-            return publisher;
+    public Publisher createPublisher(String topic) {
+        return new Publisher(this, topic);
     }
 
-    public Subscriber create_subscriber(String topic) {
-        Subscriber subscriber = new Subscriber(this, topic);
-        return subscriber;
+    public Subscriber createSubscriber(String topic) {
+        return new Subscriber(this, topic);
+    }
+
+    public int getPort() {
+        return nodePort;
+    }
+
+    public DatagramSocket getSocket() {
+        return socket;
+    }
+
+    public String getName() {
+        return nodeName;
+    }
+
+    public static void addPublisher(String topic, Node node) {
+        topicPublishers.computeIfAbsent(topic, k -> new ArrayList<>()).add(node);
+    }
+
+    public static void addSubscriber(String topic, Node node) {
+        topicSubscribers.computeIfAbsent(topic, k -> new ArrayList<>()).add(node);
+    }
+
+    public static List<Node> getPublishers(String topic) {
+        return topicPublishers.getOrDefault(topic, new ArrayList<>());
+    }
+
+    public static List<Node> getSubscribers(String topic) {
+        return topicSubscribers.getOrDefault(topic, new ArrayList<>());
     }
 }

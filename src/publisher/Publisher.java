@@ -1,55 +1,38 @@
+// Modified Publisher.java
 package publisher;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import node.Node;
-import subscriber.Subscriber;
 
 public class Publisher {
-    public DatagramSocket pubDGS = null;
-    public int subscriberPort;
-    public static Map<String, ArrayList<Node>> topicPublishers = new HashMap<>();
-    public String topic;
+    private static final int REGISTRY_PORT = 5000;
+    private final Node node;
+    private final String topic;
+    private final DatagramSocket socket;
 
     public Publisher(Node node, String topic) {
-        try {
-            this.topic = topic;
-            pubDGS = new DatagramSocket();
-            if (topicPublishers.size() != 0 || topicPublishers.containsKey(topic) == false) {
-                topicPublishers.put(topic, new ArrayList<Node>(){});
-                topicPublishers.get(topic).add(node);
-                return;
-            }
-            else {
-                topicPublishers.get(topic).add(node);
-            }
-        }
-        catch (SocketException err) {
-            System.out.println(err);
-        }
+        this.node = node;
+        this.topic = topic;
+        this.socket = node.getSocket();
     }
 
     public void publish(String data) {
         try {
-            this.subscriberPort = Subscriber.topicSubscribers.get(this.topic).get(0).nodePort;
-            byte[] buffer = data.getBytes();
-            DatagramPacket DGP = new DatagramPacket(buffer, buffer.length, InetAddress.getLocalHost(), this.subscriberPort);
-            pubDGS.send(DGP);
-            System.out.println("Sent data: " + data);
-        }
-        catch (UnknownHostException err) {
-            System.out.println(err);
-        }
-        catch (IOException err) {
-            System.out.println(err);
+            String message = "PUBLISH:" + topic + ":" + data;
+            byte[] buffer = message.getBytes();
+            DatagramPacket packet = new DatagramPacket(
+                buffer,
+                buffer.length,
+                InetAddress.getLocalHost(),
+                REGISTRY_PORT
+            );
+            socket.send(packet);
+            // System.out.println(node.getName() + " published: " + data + " to topic: " + topic);
+        } catch (IOException e) {
+            System.err.println("Error publishing message: " + e.getMessage());
         }
     }
 }
-
