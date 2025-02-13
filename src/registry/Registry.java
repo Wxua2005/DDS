@@ -4,17 +4,17 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Registry {
-    private static final int REGISTRY_PORT = 5000;
+    private static final int REGISTRY_PORT = 5001;
     private DatagramSocket registrySocket;
     private Map<String, List<SubscriberInfo>> topicSubscribers;
     private volatile boolean running;
+    String REGISTRY_IP = "192.168.201.150";
 
     public static class SubscriberInfo {
         public final InetAddress address;
@@ -28,11 +28,12 @@ public class Registry {
 
     public Registry() {
         try {
-            registrySocket = new DatagramSocket(REGISTRY_PORT);
+            // registrySocket = new DatagramSocket(REGISTRY_PORT, InetAddress.getLocalHost());
+            registrySocket = new DatagramSocket(REGISTRY_PORT, InetAddress.getByName(REGISTRY_IP));
             topicSubscribers = new ConcurrentHashMap<>();
             running = true;
             startListening();
-        } catch (SocketException e) {
+        } catch (Exception e) {
             System.err.println("Failed to start registry: " + e.getMessage());
         }
     }
@@ -47,7 +48,8 @@ public class Registry {
                     registrySocket.receive(packet);
                     String message = new String(packet.getData(), 0, packet.getLength());
                     handleMessage(message, packet.getAddress(), packet.getPort());
-                } catch (IOException e) {
+                } 
+                catch (IOException e) {
                     if (running) {
                         System.err.println("Registry error: " + e.getMessage());
                     }

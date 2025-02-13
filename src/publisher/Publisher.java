@@ -1,4 +1,3 @@
-// Modified Publisher.java
 package publisher;
 
 import java.io.IOException;
@@ -8,7 +7,8 @@ import java.net.InetAddress;
 import node.Node;
 
 public class Publisher {
-    private static final int REGISTRY_PORT = 5000;
+    private static final int REGISTRY_PORT = 5001;
+    private static final String REGISTRY_IP = "192.168.201.150"; // Registry IP address
     private final Node node;
     private final String topic;
     private final DatagramSocket socket;
@@ -26,7 +26,7 @@ public class Publisher {
             DatagramPacket packet = new DatagramPacket(
                 buffer,
                 buffer.length,
-                InetAddress.getLocalHost(),
+                InetAddress.getByName(REGISTRY_IP),
                 REGISTRY_PORT
             );
             socket.send(packet);

@@ -8,8 +8,9 @@ import java.nio.charset.StandardCharsets;
 import node.Node;
 
 public class Subscriber implements Runnable {
-    private static final int REGISTRY_PORT = 5000;
     private final Node node;
+    private static final int REGISTRY_PORT = 5001;
+    private static final String REGISTRY_IP = "192.168.201.150"; // Registry IP address (of mac)
     private final String topic;
     private final DatagramSocket socket;
     private volatile boolean running;
@@ -31,7 +32,7 @@ public class Subscriber implements Runnable {
             DatagramPacket packet = new DatagramPacket(
                 buffer,
                 buffer.length,
-                InetAddress.getLocalHost(),
+                InetAddress.getByName(REGISTRY_IP),
                 REGISTRY_PORT
             );
             socket.send(packet);
