@@ -5,6 +5,6 @@ public class Main3 {
         Node node4 = new Node("node4");
 
         node4.createSubscriber("topic1");
-
+        //node4.createSubscriber("topic1");
     }
 }

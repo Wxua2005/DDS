@@ -2,43 +2,42 @@ package subscriber;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.nio.charset.StandardCharsets;
 import node.Node;
 
 public class Subscriber implements Runnable {
     private final Node node;
-    private static final int REGISTRY_PORT = 5001;
-    private static final String REGISTRY_IP = "192.168.201.150"; // Registry IP address (of mac)
     private final String topic;
-    private final DatagramSocket socket;
+    private final MulticastSocket multicastSocket;
+    private final InetAddress multicastGroup;
+    private final int multicastPort;
     private volatile boolean running;
     private Thread receiveThread;
 
     public Subscriber(Node node, String topic) {
         this.node = node;
         this.topic = topic;
-        this.socket = node.getSocket();
-        this.running = true;
-        registerWithRegistry();
-        startReceiving();
-    }
-
-    private void registerWithRegistry() {
+        
+        String[] addressInfo = Node.getMulticastAddressForTopic(topic);
+        
         try {
-            String message = "SUBSCRIBE:" + topic;
-            byte[] buffer = message.getBytes();
-            DatagramPacket packet = new DatagramPacket(
-                buffer,
-                buffer.length,
-                InetAddress.getByName(REGISTRY_IP),
-                REGISTRY_PORT
-            );
-            socket.send(packet);
-            System.out.println(node.getName() + " registered for topic: " + topic);
-        } catch (IOException e) {
-            System.err.println("Error registering with registry: " + e.getMessage());
+            this.multicastSocket = new MulticastSocket(Integer.parseInt(addressInfo[1]));
+            this.multicastGroup = InetAddress.getByName(addressInfo[0]);
+            this.multicastPort = Integer.parseInt(addressInfo[1]);
+            
+            multicastSocket.joinGroup(multicastGroup);
+            
+            this.running = true;
+            System.out.println(node.getName() + " subscribed to topic: " + topic +
+                   " using multicast group: " + multicastGroup.getHostAddress() + ":" + multicastPort);
+            
+            startReceiving();
+        } 
+        catch (IOException e) {
+            System.err.println("Error creating multicast subscriber: " + e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
@@ -54,15 +53,20 @@ public class Subscriber implements Runnable {
 
         while (running) {
             try {
-                socket.receive(packet);
+                multicastSocket.receive(packet);
                 String received = new String(
                     packet.getData(),
                     0,
                     packet.getLength(),
                     StandardCharsets.UTF_8
                 );
-                System.out.println(node.getName() + " received: " + received);
-            } catch (IOException e) {
+                
+                if (received.startsWith(topic + ":")) {
+                    String message = received.substring(topic.length() + 1);
+                    System.out.println(node.getName() + " received: " + message);
+                }
+            } 
+            catch (IOException e) {
                 if (running) {
                     System.err.println("Error receiving message: " + e.getMessage());
                 }
@@ -72,6 +76,11 @@ public class Subscriber implements Runnable {
 
     public void stop() {
         running = false;
-        socket.close();
+        try {
+            multicastSocket.leaveGroup(multicastGroup);
+        } catch (IOException e) {
+            System.err.println("Error leaving multicast group: " + e.getMessage());
+        }
+        multicastSocket.close();
     }
 }

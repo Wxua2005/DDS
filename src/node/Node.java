@@ -2,24 +2,27 @@ package node;
 
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import publisher.Publisher;
 import subscriber.Subscriber;
 
 public class Node {
-    private static final int REGISTRY_PORT = 5000;
     private final String nodeName;
     private final DatagramSocket socket;
+    private static final Map<String, String[]> topicAddressMap = new ConcurrentHashMap<>();
+    private static final String MULTICAST_BASE_ADDRESS = "224.0.0.";
+    private static final int MULTICAST_BASE_PORT = 6000;
+    private static int topicCounter = 1;
 
     public Node(String nodeName) {
         try {
             this.nodeName = nodeName;
             this.socket = new DatagramSocket();
             System.out.println("Node " + nodeName + " started on port " + socket.getLocalPort());
-        } catch (SocketException err) {
+        } 
+        catch (SocketException err) {
             System.err.println("Error creating node: " + err.getMessage());
             throw new RuntimeException(err);
         }
@@ -27,6 +30,10 @@ public class Node {
 
     public Publisher createPublisher(String topic) {
         return new Publisher(this, topic);
+    }
+
+    public Publisher createPublisher(String topic, int publishingRateMs) {
+        return new Publisher(this, topic, publishingRateMs);
     }
 
     public Subscriber createSubscriber(String topic) {
@@ -45,19 +52,24 @@ public class Node {
         return nodeName;
     }
 
-    public void registerWithRegistry(String topic, int port) {
-        try {
-            String message = "SUBSCRIBE:" + topic;
-            byte[] buffer = message.getBytes();
-            DatagramPacket packet = new DatagramPacket(
-                buffer,
-                buffer.length,
-                InetAddress.getLocalHost(),
-                REGISTRY_PORT
-            );
-            socket.send(packet);
-        } catch (IOException e) {
-            System.err.println("Failed to register with registry: " + e.getMessage());
+    public static String[] getMulticastAddressForTopic(String topic) {
+        if (topicAddressMap.containsKey(topic)) {
+            return topicAddressMap.get(topic);
+        }
+        
+        synchronized (topicAddressMap) {
+
+            if (!topicAddressMap.containsKey(topic)) {
+                int lastOctet = topicCounter++ % 255;
+                if (lastOctet == 0) lastOctet = 1; 
+                String ipAddress = MULTICAST_BASE_ADDRESS + lastOctet;
+                int port = MULTICAST_BASE_PORT + (topicCounter % 1000);
+                
+                topicAddressMap.put(topic, new String[] {ipAddress, String.valueOf(port)});
+                System.out.println("Allocated multicast address " + ipAddress + ":" + port + " for topic " + topic);
+            }
+            return topicAddressMap.get(topic);
+
         }
     }
 }

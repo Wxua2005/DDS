@@ -14,7 +14,7 @@ public class Registry {
     private DatagramSocket registrySocket;
     private Map<String, List<SubscriberInfo>> topicSubscribers;
     private volatile boolean running;
-    String REGISTRY_IP = "192.168.201.150";
+    String REGISTRY_IP = "192.168.174.150";
 
     public static class SubscriberInfo {
         public final InetAddress address;
@@ -28,12 +28,13 @@ public class Registry {
 
     public Registry() {
         try {
-            // registrySocket = new DatagramSocket(REGISTRY_PORT, InetAddress.getLocalHost());
-            registrySocket = new DatagramSocket(REGISTRY_PORT, InetAddress.getByName(REGISTRY_IP));
+            registrySocket = new DatagramSocket(REGISTRY_PORT, InetAddress.getLocalHost());
+            //registrySocket = new DatagramSocket(REGISTRY_PORT, InetAddress.getByName(REGISTRY_IP));
             topicSubscribers = new ConcurrentHashMap<>();
             running = true;
             startListening();
-        } catch (Exception e) {
+        } 
+        catch (Exception e) {
             System.err.println("Failed to start registry: " + e.getMessage());
         }
     }
@@ -70,7 +71,7 @@ public class Registry {
                 addSubscriber(topic, address, port);
                 break;
             case "PUBLISH":
-                notifySubscribers(topic, parts[2], address, port);
+                notifySubscribers(topic, parts[2]);
                 break;
         }
     }
@@ -80,8 +81,8 @@ public class Registry {
                        .add(new SubscriberInfo(address, port));
         System.out.println("Added subscriber for topic " + topic + " at " + address + ":" + port);
     }
-
-    private void notifySubscribers(String topic, String message, InetAddress publisherAddress, int publisherPort) {
+    
+    private void notifySubscribers(String topic, String message) {
         List<SubscriberInfo> subscribers = topicSubscribers.get(topic);
         if (subscribers == null) return;
 
@@ -95,7 +96,8 @@ public class Registry {
                     subscriber.port
                 );
                 registrySocket.send(packet);
-            } catch (IOException e) {
+            } 
+            catch (IOException e) {
                 System.err.println("Failed to forward message to subscriber: " + e.getMessage());
             }
         }
